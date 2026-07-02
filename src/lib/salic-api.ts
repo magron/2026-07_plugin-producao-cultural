@@ -11,6 +11,12 @@ export interface SalicProject {
   resumo: string
 }
 
+export interface SalicResponse<T> {
+  data: T
+  isFallback: boolean
+  error?: string
+}
+
 export const MOCK_PROJECTS: SalicProject[] = [
   {
     pronac: '212345',
@@ -90,7 +96,7 @@ const mapSalicToProject = (p: any): SalicProject => ({
   resumo: p.resumo,
 })
 
-export async function fetchProjects(query?: string): Promise<SalicProject[]> {
+export async function fetchProjects(query?: string): Promise<SalicResponse<SalicProject[]>> {
   try {
     const url = query
       ? `https://api.salic.cultura.gov.br/api/v1/projetos/?limit=15&nome=${encodeURIComponent(query)}`
@@ -101,28 +107,43 @@ export async function fetchProjects(query?: string): Promise<SalicProject[]> {
 
     const data = await res.json()
     if (data && data._embedded && data._embedded.projetos) {
-      return data._embedded.projetos.map(mapSalicToProject)
+      return { data: data._embedded.projetos.map(mapSalicToProject), isFallback: false }
     }
-    throw new Error('Formato inesperado')
+    throw new Error('Formato inesperado da API')
   } catch (err) {
     console.warn('Usando dados mockados (Falha na API Salic)', err)
     let results = [...MOCK_PROJECTS]
     if (query) {
       const q = query.toLowerCase()
-      results = results.filter((p) => p.nome.toLowerCase().includes(q) || p.pronac.includes(q))
+      results = results.filter(
+        (p) =>
+          p.nome.toLowerCase().includes(q) ||
+          p.pronac.includes(q) ||
+          p.proponente.toLowerCase().includes(q),
+      )
     }
-    return results
+    return {
+      data: results,
+      isFallback: true,
+      error: 'Não foi possível conectar à API do SALIC. Exibindo dados de demonstração.',
+    }
   }
 }
 
-export async function fetchProjectById(pronac: string): Promise<SalicProject | null> {
+export async function fetchProjectById(
+  pronac: string,
+): Promise<SalicResponse<SalicProject | null>> {
   try {
     const res = await fetch(`https://api.salic.cultura.gov.br/api/v1/projetos/${pronac}`)
     if (!res.ok) throw new Error('Projeto não encontrado na API')
     const data = await res.json()
-    return mapSalicToProject(data)
+    return { data: mapSalicToProject(data), isFallback: false }
   } catch (err) {
     console.warn('Usando dados mockados para o projeto', err)
-    return MOCK_PROJECTS.find((p) => p.pronac === pronac) || null
+    return {
+      data: MOCK_PROJECTS.find((p) => p.pronac === pronac) || null,
+      isFallback: true,
+      error: 'Não foi possível conectar à API do SALIC. Exibindo dados de demonstração.',
+    }
   }
 }

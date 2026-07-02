@@ -9,12 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { useProjectDetail } from '@/hooks/use-salic'
 import { formatCurrency, calculateProgress } from '@/lib/utils'
+import { FallbackNotice } from '@/components/fallback-notice'
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { data: project, isLoading } = useProjectDetail(id)
+  const { data: project, isLoading, isFallback } = useProjectDetail(id)
 
   const handleCopyPronac = () => {
     if (project?.pronac) {
@@ -43,6 +44,10 @@ export default function ProjectDetail() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <h2 className="text-2xl font-bold mb-4">Projeto não encontrado</h2>
+        <p className="text-slate-500 mb-6 text-center max-w-md">
+          Não foi possível localizar este projeto na base do SALIC. Verifique o número do PRONAC e
+          tente novamente.
+        </p>
         <Button onClick={() => navigate('/busca')}>Voltar para busca</Button>
       </div>
     )
@@ -52,6 +57,8 @@ export default function ProjectDetail() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto animate-fade-in">
+      {isFallback && <FallbackNotice />}
+
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
           <ArrowLeft className="h-5 w-5" />

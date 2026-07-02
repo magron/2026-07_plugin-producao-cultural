@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Search as SearchIcon, Filter, SlidersHorizontal } from 'lucide-react'
+import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,6 +23,9 @@ import {
 } from '@/components/ui/select'
 import { useProjects } from '@/hooks/use-salic'
 import { formatCurrency, calculateProgress, cn } from '@/lib/utils'
+import { FallbackNotice } from '@/components/fallback-notice'
+import { EmptyState } from '@/components/empty-state'
+import { ErrorNotice } from '@/components/error-notice'
 
 export default function SearchPage() {
   const navigate = useNavigate()
@@ -30,18 +33,39 @@ export default function SearchPage() {
   const initialQuery = searchParams.get('q') || ''
 
   const [query, setQuery] = useState(initialQuery)
-  const { data: projects, isLoading } = useProjects(initialQuery)
+  const [statusFilter, setStatusFilter] = useState('todos')
+  const [retryKey, setRetryKey] = useState(0)
+
+  const {
+    data: projects,
+    isLoading,
+    isFallback,
+    error,
+  } = useProjects(retryKey !== undefined ? initialQuery : undefined)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setSearchParams(query ? { q: query } : {})
   }
 
+  const handleRetry = useCallback(() => {
+    setRetryKey((k) => k + 1)
+  }, [])
+
   const getStatusBadge = (status: string) => {
     if (status.includes('Aprovado')) return 'bg-green-100 text-green-800 border-green-200'
     if (status.includes('Captação')) return 'bg-amber-100 text-amber-800 border-amber-200'
     return 'bg-slate-100 text-slate-800 border-slate-200'
   }
+
+  const filteredProjects = projects.filter((p) => {
+    if (statusFilter === 'todos') return true
+    if (statusFilter === 'aprovado') return p.status.includes('Aprovado')
+    if (statusFilter === 'captacao') return p.status.includes('Captação')
+    return true
+  })
+
+  const showError = error && !isFallback
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -63,7 +87,7 @@ export default function SearchPage() {
           />
         </form>
         <div className="flex gap-2">
-          <Select defaultValue="todos">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -83,22 +107,25 @@ export default function SearchPage() {
         </div>
       </div>
 
+      {isFallback && <FallbackNotice />}
+      {showError && <ErrorNotice message={error} onRetry={handleRetry} />}
+
       <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="w-[100px]">PRONAC</TableHead>
-                <TableHead className="min-w-[300px]">Projeto</TableHead>
-                <TableHead>Proponente</TableHead>
-                <TableHead className="text-right">Aprovado</TableHead>
-                <TableHead className="w-[200px]">Captação</TableHead>
-                <TableHead className="w-[120px] text-center">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+        {isLoading ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow>
+                  <TableHead className="w-[100px]">PRONAC</TableHead>
+                  <TableHead className="min-w-[300px]">Projeto</TableHead>
+                  <TableHead>Proponente</TableHead>
+                  <TableHead className="text-right">Aprovado</TableHead>
+                  <TableHead className="w-[200px]">Captação</TableHead>
+                  <TableHead className="w-[120px] text-center">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell>
                       <Skeleton className="h-5 w-16" />
@@ -120,15 +147,30 @@ export default function SearchPage() {
                       <Skeleton className="h-6 w-20 mx-auto rounded-full" />
                     </TableCell>
                   </TableRow>
-                ))
-              ) : projects.length === 0 ? (
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : filteredProjects.length === 0 ? (
+          <EmptyState
+            title="Nenhum projeto encontrado"
+            description="Não encontramos projetos que correspondam aos seus critérios de busca. Tente ajustar os filtros ou pesquisar por outro termo."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-slate-50">
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-slate-500">
-                    Nenhum projeto encontrado para esta busca.
-                  </TableCell>
+                  <TableHead className="w-[100px]">PRONAC</TableHead>
+                  <TableHead className="min-w-[300px]">Projeto</TableHead>
+                  <TableHead>Proponente</TableHead>
+                  <TableHead className="text-right">Aprovado</TableHead>
+                  <TableHead className="w-[200px]">Captação</TableHead>
+                  <TableHead className="w-[120px] text-center">Status</TableHead>
                 </TableRow>
-              ) : (
-                projects.map((project) => {
+              </TableHeader>
+              <TableBody>
+                {filteredProjects.map((project) => {
                   const progress = calculateProgress(project.valor_captado, project.valor_aprovado)
                   return (
                     <TableRow
@@ -173,11 +215,11 @@ export default function SearchPage() {
                       </TableCell>
                     </TableRow>
                   )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </div>
   )

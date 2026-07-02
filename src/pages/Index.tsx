@@ -6,12 +6,13 @@ import { Badge } from '@/components/ui/badge'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { useProjects } from '@/hooks/use-salic'
-import { formatCurrency, calculateProgress } from '@/lib/utils'
+import { formatCurrency, calculateProgress, cn } from '@/lib/utils'
 import { Progress } from '@/components/ui/progress'
+import { FallbackNotice } from '@/components/fallback-notice'
 
 export default function Index() {
   const navigate = useNavigate()
-  const { data: recentProjects, isLoading } = useProjects()
+  const { data: recentProjects, isLoading, isFallback } = useProjects()
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -33,7 +34,7 @@ export default function Index() {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Painel de Controle</h1>
@@ -48,6 +49,8 @@ export default function Index() {
           />
         </form>
       </div>
+
+      {isFallback && <FallbackNotice />}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-md transition-shadow">
