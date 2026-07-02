@@ -1,14 +1,19 @@
-/* General utility functions (exposes cn) */
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
-/**
- * Merges multiple class names into a single string
- * @param inputs - Array of class names
- * @returns Merged class names
- */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Add any other utility functions here
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
+
+export function calculateProgress(captured: number, approved: number): number {
+  if (!approved || approved === 0) return 0
+  const percentage = (captured / approved) * 100
+  return Math.min(Math.max(percentage, 0), 100)
+}
